@@ -17,16 +17,13 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 
-from code.book_plots import figsize, end_interactive
 from filterpy.monte_carlo import stratified_resample, residual_resample
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 import numpy as np
 from numpy.random import randn, random, uniform, multivariate_normal, seed
-#from nonlinear_plots import plot_monte_carlo_mean
 import scipy.stats
-#from RobotLocalizationParticleFilter import *
 
 
 
@@ -90,7 +87,7 @@ class ParticleFilter(object):
             w[i] = self.weights[index]
 
         self.particles = p
-        self.weights = w / np.sum(w)
+        self.weights.fill(1.0 / self.N)
 
 
     def estimate(self):
@@ -114,12 +111,14 @@ def plot_random_pd():
     y2 =  (0.1 * np.sin(norm(x, 0.2, 0.05)) +  0.25 * norm(x, 0.6, 0.05) +
           .5*norm(x, .5, .08) +
            np.sqrt(norm(x, 0.8, 0.06)) +0.1 * (1 - sigmoid(x, 0.45, 0.15)))
-    with plt.xkcd():
-        #plt.setp(plt.gca().get_xticklabels(), visible=False)
-        #plt.setp(plt.gca().get_yticklabels(), visible=False)
-        plt.axes(xticks=[], yticks=[], frameon=False)
-        plt.plot(x, y2)
-        plt.ylim([0, max(y2)+.1])
+
+    # hack because of bug `with plt.xkcd()` doesn't return context correctly
+    saved_state = mpl.rcParams.copy()
+    plt.xkcd()
+    plt.axes(xticks=[], yticks=[], frameon=False)
+    plt.plot(x, y2)
+    plt.ylim([0, max(y2)+.1])
+    mpl.rcParams.update(saved_state)
 
 
 def plot_monte_carlo_ukf():
@@ -313,29 +312,27 @@ def test_pf2():
 
 def plot_cumsum(a):
 
-    with figsize(y=2):
-        fig = plt.figure()
-        N = len(a)
+    fig = plt.figure()
+    N = len(a)
 
-        cmap = mpl.colors.ListedColormap([[0., .4, 1.],
-                                          [0., .8, 1.],
-                                          [1., .8, 0.],
-                                          [1., .4, 0.]]*(int(N/4) + 1))
-        cumsum = np.cumsum(np.asarray(a) / np.sum(a))
-        cumsum = np.insert(cumsum, 0, 0)
+    cmap = mpl.colors.ListedColormap([[0., .4, 1.],
+                                      [0., .8, 1.],
+                                      [1., .8, 0.],
+                                      [1., .4, 0.]]*(int(N/4) + 1))
+    cumsum = np.cumsum(np.asarray(a) / np.sum(a))
+    cumsum = np.insert(cumsum, 0, 0)
 
-        #fig = plt.figure(figsize=(6,3))
-        fig=plt.gcf()
-        ax = fig.add_axes([0.05, 0.475, 0.9, 0.15])
-        norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
-        bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
-                                         norm=norm,
-                                         drawedges=False,
-                                         spacing='proportional',
-                                         orientation='horizontal')
-        if N > 10:
-            bar.set_ticks([])
-        end_interactive(fig)
+    #fig = plt.figure(figsize=(6,3))
+    fig=plt.gcf()
+    ax = fig.add_axes([0.05, 0.475, 0.9, 0.15])
+    norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
+    bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                     norm=norm,
+                                     drawedges=False,
+                                     spacing='proportional',
+                                     orientation='horizontal')
+    if N > 10:
+        bar.set_ticks([])
 
 
 def plot_stratified_resample(a):
@@ -348,24 +345,22 @@ def plot_stratified_resample(a):
     cumsum = np.cumsum(np.asarray(a) / np.sum(a))
     cumsum = np.insert(cumsum, 0, 0)
 
-    with figsize(y=2):
-        fig = plt.figure()
-        ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
-        norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
-        bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
-                                         norm=norm,
-                                         drawedges=False,
-                                         spacing='proportional',
-                                         orientation='horizontal')
-        xs = np.linspace(0., 1.-1./N, N)
-        ax.vlines(xs, 0, 1, lw=2)
+    fig = plt.figure()
+    ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
+    norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
+    bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                     norm=norm,
+                                     drawedges=False,
+                                     spacing='proportional',
+                                     orientation='horizontal')
+    xs = np.linspace(0., 1.-1./N, N)
+    ax.vlines(xs, 0, 1, lw=2)
 
-        # make N subdivisions, and chose a random position within each one
-        b = (random(N) + range(N)) / N
-        plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
-        bar.set_ticks([])
-        plt.title('stratified resampling')
-        end_interactive(fig)
+    # make N subdivisions, and chose a random position within each one
+    b = (random(N) + range(N)) / N
+    plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
+    bar.set_ticks([])
+    plt.title('stratified resampling')
 
 
 def plot_systematic_resample(a):
@@ -378,24 +373,22 @@ def plot_systematic_resample(a):
     cumsum = np.cumsum(np.asarray(a) / np.sum(a))
     cumsum = np.insert(cumsum, 0, 0)
 
-    with figsize(y=2):
-        fig = plt.figure()
-        ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
-        norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
-        bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
-                                         norm=norm,
-                                         drawedges=False,
-                                         spacing='proportional',
-                                         orientation='horizontal')
-        xs = np.linspace(0., 1.-1./N, N)
-        ax.vlines(xs, 0, 1, lw=2)
+    fig = plt.figure()
+    ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
+    norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
+    bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                     norm=norm,
+                                     drawedges=False,
+                                     spacing='proportional',
+                                     orientation='horizontal')
+    xs = np.linspace(0., 1.-1./N, N)
+    ax.vlines(xs, 0, 1, lw=2)
 
-        # make N subdivisions, and chose a random position within each one
-        b = (random() + np.array(range(N))) / N
-        plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
-        bar.set_ticks([])
-        plt.title('systematic resampling')
-        end_interactive(fig)
+    # make N subdivisions, and chose a random position within each one
+    b = (random() + np.array(range(N))) / N
+    plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
+    bar.set_ticks([])
+    plt.title('systematic resampling')
 
 
 def plot_multinomial_resample(a):
@@ -408,22 +401,20 @@ def plot_multinomial_resample(a):
     cumsum = np.cumsum(np.asarray(a) / np.sum(a))
     cumsum = np.insert(cumsum, 0, 0)
 
-    with figsize(y=2):
-        fig = plt.figure()
-        ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
-        norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
-        bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
-                                         norm=norm,
-                                         drawedges=False,
-                                         spacing='proportional',
-                                         orientation='horizontal')
+    fig = plt.figure()
+    ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
+    norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
+    bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                     norm=norm,
+                                     drawedges=False,
+                                     spacing='proportional',
+                                     orientation='horizontal')
 
-        # make N subdivisions, and chose a random position within each one
-        b = random(N)
-        plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
-        bar.set_ticks([])
-        plt.title('multinomial resampling')
-        end_interactive(fig)
+    # make N subdivisions, and chose a random position within each one
+    b = random(N)
+    plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
+    bar.set_ticks([])
+    plt.title('multinomial resampling')
 
 
 def plot_residual_resample(a):
@@ -438,34 +429,36 @@ def plot_residual_resample(a):
                                       [1., .8, 0.],
                                       [1., .4, 0.]]*(int(N/4) + 1))
 
-    with figsize(y=2):
-        fig = plt.figure()
-        ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
-        norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
-        bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
-                                         norm=norm,
-                                         drawedges=False,
-                                         spacing='proportional',
-                                         orientation='horizontal')
+    fig = plt.figure()
+    ax = plt.gcf().add_axes([0.05, 0.475, 0.9, 0.15])
+    norm = mpl.colors.BoundaryNorm(cumsum, cmap.N)
+    bar = mpl.colorbar.ColorbarBase(ax, cmap=cmap,
+                                     norm=norm,
+                                     drawedges=False,
+                                     spacing='proportional',
+                                     orientation='horizontal')
 
-        indexes = residual_resample(a_norm)
-        bins = np.bincount(indexes)
-        for i in range(1, N):
-            n =  bins[i-1] # number particles in this sample
-            if n > 0:
-                b = np.linspace(cumsum[i-1], cumsum[i], n+2)[1:-1]
-                plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
-        bar.set_ticks([])
-        plt.title('residual resampling')
-        end_interactive(fig)
+    indexes = residual_resample(a_norm)
+    bins = np.bincount(indexes)
+    for i in range(1, N):
+        n =  bins[i-1] # number particles in this sample
+        if n > 0:
+            b = np.linspace(cumsum[i-1], cumsum[i], n+2)[1:-1]
+            plt.scatter(b, [.5]*len(b), s=60, facecolor='k', edgecolor='k')
+    bar.set_ticks([])
+    plt.title('residual resampling')
+
 
 
 if __name__ == '__main__':
-    plot_residual_resample([.1, .2, .3, .4, .2, .3, .1])
+
+    show_two_pf_plots()
+
+    #plot_residual_resample([.1, .2, .3, .4, .2, .3, .1])
 
     #example()
     #show_two_pf_plots()
 
-    a = [.1, .2, .1, .6]
+    #a = [.1, .2, .1, .6]
     #plot_cumsum(a)
     #test_pf()
